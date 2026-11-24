@@ -1,7 +1,7 @@
 (() => {
   const KEY = 'dailyBingo.v1';
   const $ = id => document.getElementById(id);
-  const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+  const today = () => { const d = new Date(); d.setHours(d.getHours()-4); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }; // Daily bingo day rolls over at 4:00 AM local time.
   const defaults = Array.from({length:9}, (_,i) => `My task ${i+1}`);
   let state = load();
   let toastTimer;
