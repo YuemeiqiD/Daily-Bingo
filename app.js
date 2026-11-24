@@ -1,7 +1,7 @@
 (() => {
   const KEY = 'dailyBingo.v1';
   const $ = id => document.getElementById(id);
-  const today = () => { const d = new Date(); d.setHours(d.getHours()-4); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }; // Daily bingo day rolls over at 4:00 AM local time.
+  const today = () => { const d = new Date(); if (d.getHours() < 4) d.setDate(d.getDate()-1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }; // Daily bingo day runs from 4:00 AM to 3:59 AM local time.
   const defaults = Array.from({length:9}, (_,i) => `My task ${i+1}`);
   let state = load();
   let toastTimer;
@@ -79,7 +79,7 @@
   $('editForm').addEventListener('submit',e=>{if(e.submitter && e.submitter.value==='save'){const tasks=readFields('editFields');if(tasks.some(x=>!x)){e.preventDefault();showToast('Please fill in all nine tasks.');return;}state.tasks=tasks;save();render();showToast('Your task list is saved.');}});
   $('resetButton').addEventListener('click',()=>{state.done=[];save();render();showToast("Today's card is reset.");});
   if(state.tasks){ensureDay();showGame();}else{showSetup();}
-  if('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(()=>{});
+  if('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js?v=5',{updateViaCache:'none'}).then(reg=>reg.update()).catch(()=>{});
   // Catch a day change while the app remains open.
   document.addEventListener('visibilitychange',()=>{if(!document.hidden && state.tasks && state.date!==today()){newDay();render();showToast('A fresh card for a new day!');}});
 })();
