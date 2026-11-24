@@ -1,0 +1,11 @@
+{
+  "name": "Daily Bingo",
+  "short_name": "Daily Bingo",
+  "description": "Your same nine tasks, shuffled into a fresh bingo card every day.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4efe7",
+  "theme_color": "#f4efe7",
+  "icons": [{"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+}
