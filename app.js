@@ -6,7 +6,14 @@
   let state = load();
   let toastTimer;
 
-  function load(){ try { const s=JSON.parse(localStorage.getItem(KEY)); return s && Array.isArray(s.tasks) && s.tasks.length===9 ? s : {tasks:null}; } catch { return {tasks:null}; } }
+  function load(){
+    try {
+      const s=JSON.parse(localStorage.getItem(KEY));
+      if(!s || !Array.isArray(s.tasks) || s.tasks.length!==9) return {tasks:null,stats:{playedDays:[],bingoDays:[]}};
+      s.stats=s.stats && Array.isArray(s.stats.playedDays) && Array.isArray(s.stats.bingoDays) ? s.stats : {playedDays:[],bingoDays:[]};
+      return s;
+    } catch { return {tasks:null,stats:{playedDays:[],bingoDays:[]}}; }
+  }
   function save(){ localStorage.setItem(KEY, JSON.stringify(state)); }
   function shuffled(){ const a=[0,1,2,3,4,5,6,7,8]; for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
   function newDay(){ state.date=today(); state.order=shuffled(); state.done=[]; save(); }
@@ -16,16 +23,44 @@
   function readFields(target){return [...$(target).querySelectorAll('input')].map(x=>x.value.trim());}
   function showSetup(){ $('setup').hidden=false; $('game').hidden=true; fields('setupFields',state.tasks||defaults.map(()=>'')); }
   function showGame(){ $('setup').hidden=true; $('game').hidden=false; render(); }
+  function dateOffset(dateString, offset){
+    const d=new Date(`${dateString}T12:00:00Z`);d.setUTCDate(d.getUTCDate()+offset);
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
+  }
+  function streakLength(days, endDate){
+    const set=new Set(days);let count=0,d=endDate;
+    while(set.has(d)){count++;d=dateOffset(d,-1);}
+    return count;
+  }
+  function updateStats(){
+    const stats=state.stats || (state.stats={playedDays:[],bingoDays:[]});
+    const day=today();
+    if(state.done.length && !stats.playedDays.includes(day)) stats.playedDays.push(day);
+    const lines=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+    if(lines.some(line=>line.every(pos=>state.done.includes(state.order[pos]))) && !stats.bingoDays.includes(day)) stats.bingoDays.push(day);
+    save();
+  }
+  function renderStats(){
+    const stats=state.stats || {playedDays:[],bingoDays:[]};
+    const played=[...new Set(stats.playedDays)].sort();
+    const currentEnd=played.includes(today())?today():played.includes(dateOffset(today(),-1))?dateOffset(today(),-1):null;
+    let best=0,run=0,previous=null;
+    for(const day of played){run=previous && dateOffset(previous,1)===day?run+1:1;best=Math.max(best,run);previous=day;}
+    $('currentStreak').textContent=currentEnd?streakLength(played,currentEnd):0;
+    $('bestStreak').textContent=best;
+    $('bingoTotal').textContent=new Set(stats.bingoDays||[]).size;
+    $('daysPlayed').textContent=played.length;
+  }
   function render(){
     ensureDay();
     const date=new Date(`${state.date}T12:00:00`);$('dateLabel').textContent=date.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'}).toUpperCase();
     const board=$('board');board.innerHTML='';const lines=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
     const winning=lines.filter(line=>line.every(pos=>state.done.includes(state.order[pos])));const winningPositions=new Set(winning.flat());
     state.order.forEach((taskIndex,pos)=>{const b=document.createElement('button');b.type='button';b.className='square'+(state.done.includes(taskIndex)?' done':'')+(winningPositions.has(pos)?' in-line':'');b.setAttribute('aria-pressed',state.done.includes(taskIndex)?'true':'false');const num=document.createElement('span');num.className='number';num.textContent=String(pos+1).padStart(2,'0');const text=document.createElement('span');text.textContent=state.tasks[taskIndex];const check=document.createElement('span');check.className='check';check.textContent='✓';b.append(num,text,check);b.addEventListener('click',()=>toggle(taskIndex));board.append(b);});
-    const count=state.done.length;$('doneCount').textContent=count;$('progressFill').style.width=`${count/9*100}%`;
+    const count=state.done.length;$('doneCount').textContent=count;renderStats();$('progressFill').style.width=`${count/9*100}%`;
     $('bingoMessage').textContent=winning.length?(count===9?'BLACKOUT! All nine completed.':winning.length===1?'BINGO! You completed a line.':`BINGO! ${winning.length} lines completed.`):count===9?'All nine done. Nicely played!':count===0?'A line is waiting to happen.':`${9-count} squares left. Keep going.`;
   }
-  function toggle(i){state.done=state.done.includes(i)?state.done.filter(x=>x!==i):[...state.done,i];save();render();}
+  function toggle(i){state.done=state.done.includes(i)?state.done.filter(x=>x!==i):[...state.done,i];if(state.done.length)updateStats();save();render();}
   $('setupForm').addEventListener('submit',e=>{e.preventDefault();const tasks=readFields('setupFields');if(tasks.some(x=>!x)){showToast('Please fill in all nine tasks.');return;}state={tasks};newDay();showGame();});
   $('editButton').addEventListener('click',()=>{fields('editFields',state.tasks);$('editDialog').showModal();});
   $('editForm').addEventListener('submit',e=>{if(e.submitter && e.submitter.value==='save'){const tasks=readFields('editFields');if(tasks.some(x=>!x)){e.preventDefault();showToast('Please fill in all nine tasks.');return;}state.tasks=tasks;save();render();showToast('Your task list is saved.');}});
